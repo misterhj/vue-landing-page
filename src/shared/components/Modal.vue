@@ -1,0 +1,88 @@
+<script setup lang="ts">
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
+const props = withDefaults(
+	defineProps<{
+		isOpen: boolean
+		title?: string
+		maxWidthClass?: string
+		closeOnBackdrop?: boolean
+		closeOnEscape?: boolean
+	}>(),
+	{
+		title: '',
+		maxWidthClass: 'max-w-md',
+		closeOnBackdrop: true,
+		closeOnEscape: true,
+	},
+)
+
+const emit = defineEmits<{ close: [] }>()
+
+const closeBtn = ref<HTMLButtonElement | null>(null)
+
+watch(
+	() => props.isOpen,
+	async (open) => {
+		if (open) {
+			await nextTick()
+			setTimeout(() => closeBtn.value?.focus(), 50)
+		}
+	},
+)
+
+function onKeydown(event: KeyboardEvent): void {
+	if (props.isOpen && props.closeOnEscape && event.key === 'Escape') {
+		emit('close')
+	}
+}
+
+function onBackdropClick(event: MouseEvent): void {
+	const target = event.target as HTMLElement
+	if (props.closeOnBackdrop && target.classList.contains('modal-backdrop')) {
+		emit('close')
+	}
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+</script>
+
+<template>
+	<Teleport to="body">
+		<div
+			v-if="isOpen"
+			@click="onBackdropClick"
+			class="modal-backdrop fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
+		>
+			<div
+				:class="
+					'bg-slate-900 border border-slate-800 rounded-xl w-full shadow-2xl overflow-hidden flex flex-col my-auto ' +
+					maxWidthClass
+				"
+			>
+				<!-- CABECERA -->
+				<div v-if="title" class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+					<h3 class="text-sm font-semibold text-white uppercase tracking-wider">{{ title }}</h3>
+
+					<button
+						ref="closeBtn"
+						@click="emit('close')"
+						type="button"
+						aria-label="Cerrar modal"
+						class="text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:text-white cursor-pointer"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+
+				<!-- CUERPO -->
+				<div class="p-5 flex-1 overflow-y-auto max-h-[80vh]">
+					<slot />
+				</div>
+			</div>
+		</div>
+	</Teleport>
+</template>

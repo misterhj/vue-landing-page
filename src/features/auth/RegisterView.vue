@@ -1,0 +1,293 @@
+<script setup lang="ts">
+import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const auth = useAuthStore()
+
+const isLoading = ref(false)
+const errorMessage = ref<string | null>(null)
+const showSuccessNotification = ref(false)
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+
+const form = reactive({
+	firstName: '',
+	lastName: '',
+	email: '',
+	identityDocument: '',
+	phoneNumber: '',
+	username: '',
+	password: '',
+	confirmPassword: '',
+})
+
+const touched = reactive({
+	firstName: false,
+	lastName: false,
+	email: false,
+	username: false,
+	password: false,
+	confirmPassword: false,
+})
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function toggleShowPassword(): void {
+	showPassword.value = !showPassword.value
+}
+
+function toggleShowConfirmPassword(): void {
+	showConfirmPassword.value = !showConfirmPassword.value
+}
+
+async function onSubmit(): Promise<void> {
+	touched.firstName = true
+	touched.lastName = true
+	touched.email = true
+	touched.username = true
+	touched.password = true
+	touched.confirmPassword = true
+
+	if (form.password !== form.confirmPassword) {
+		errorMessage.value = 'Las contraseñas no coinciden.'
+		return
+	}
+
+	const valid =
+		form.firstName.length >= 2 &&
+		form.lastName.length >= 2 &&
+		emailPattern.test(form.email) &&
+		form.username.length >= 3 &&
+		form.password.length >= 6 &&
+		form.confirmPassword.length > 0
+
+	if (!valid) {
+		return
+	}
+
+	isLoading.value = true
+	errorMessage.value = null
+	showSuccessNotification.value = false
+
+	try {
+		await auth.register({
+			email: form.email,
+			firstName: form.firstName,
+			lastName: form.lastName,
+			username: form.username,
+			password: form.password,
+			identityDocument: form.identityDocument || undefined,
+			phoneNumber: form.phoneNumber || undefined,
+		})
+		showSuccessNotification.value = true
+		setTimeout(() => {
+			void router.push('/login')
+		}, 2500)
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err)
+		errorMessage.value = message || 'Ocurrió un error al registrar el usuario.'
+	} finally {
+		isLoading.value = false
+	}
+}
+</script>
+
+<template>
+	<div class="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+		<!-- Notificación de éxito -->
+		<div
+			v-if="showSuccessNotification"
+			class="fixed top-4 right-4 z-50 flex items-center gap-3 p-4 bg-emerald-600 rounded-lg shadow-2xl border border-emerald-500 text-white animate-slide-in"
+		>
+			<svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+			</svg>
+			<div>
+				<p class="text-sm font-semibold">¡Registro exitoso!</p>
+				<p class="text-xs text-emerald-100">Tu cuenta fue creada. Redirigiendo al login...</p>
+			</div>
+		</div>
+
+		<div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl">
+			<!-- Header -->
+			<div class="text-center mb-8">
+				<h1 class="text-3xl font-bold text-white tracking-tight">Registro</h1>
+				<p class="text-slate-400 text-sm mt-2">Crea una cuenta para administrar la plataforma</p>
+			</div>
+
+			<!-- Error Banner -->
+			<div v-if="errorMessage" class="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+				{{ errorMessage }}
+			</div>
+
+			<!-- Formulario -->
+			<form @submit.prevent="onSubmit" class="space-y-5">
+				<fieldset :disabled="isLoading" class="space-y-5">
+					<!-- Nombre/s -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Nombre/s</label>
+						<input
+							type="text"
+							v-model="form.firstName"
+							placeholder="Ej. Juan Carlos"
+							class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+						/>
+						<span v-if="touched.firstName && form.firstName.length < 2" class="text-xs text-red-400 mt-1 block">
+							El nombre es requerido (mínimo 2 caracteres).
+						</span>
+					</div>
+
+					<!-- Apellido/s -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Apellido/s</label>
+						<input
+							type="text"
+							v-model="form.lastName"
+							placeholder="Ej. Pérez García"
+							class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+						/>
+						<span v-if="touched.lastName && form.lastName.length < 2" class="text-xs text-red-400 mt-1 block">
+							El apellido es requerido (mínimo 2 caracteres).
+						</span>
+					</div>
+
+					<!-- Email -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Correo electrónico</label>
+						<input
+							type="email"
+							v-model="form.email"
+							placeholder="ej. usuario@email.com"
+							class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+						/>
+						<span v-if="touched.email && !emailPattern.test(form.email)" class="text-xs text-red-400 mt-1 block">
+							Ingresa un correo electrónico válido.
+						</span>
+					</div>
+
+					<!-- Documento de Identidad (opcional) -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Documento de Identidad <span class="text-slate-500 normal-case font-normal">(opcional)</span></label>
+						<input
+							type="text"
+							v-model="form.identityDocument"
+							placeholder="Ej. 12345678"
+							class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+						/>
+					</div>
+
+					<!-- Teléfono (opcional) -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Teléfono <span class="text-slate-500 normal-case font-normal">(opcional)</span></label>
+						<input
+							type="tel"
+							v-model="form.phoneNumber"
+							placeholder="Ej. 987654321"
+							class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+						/>
+					</div>
+
+					<!-- Usuario -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Nuevo Usuario</label>
+						<input
+							type="text"
+							v-model="form.username"
+							placeholder="Ej. admin2"
+							class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+						/>
+						<span v-if="touched.username && form.username.length < 3" class="text-xs text-red-400 mt-1 block">
+							El nombre de usuario es requerido (mínimo 3 caracteres).
+						</span>
+					</div>
+
+					<!-- Contraseña -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Contraseña</label>
+						<div class="relative">
+							<input
+								:type="showPassword ? 'text' : 'password'"
+								v-model="form.password"
+								placeholder="••••••••"
+								class="w-full pl-4 pr-11 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+							/>
+							<button
+								type="button"
+								@click="toggleShowPassword"
+								:disabled="isLoading"
+								class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition p-1 disabled:opacity-50"
+							>
+								<svg v-if="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+								</svg>
+								<svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a8.959 8.959 0 013.122-.863c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" />
+								</svg>
+							</button>
+						</div>
+						<span v-if="touched.password && form.password.length < 6" class="text-xs text-red-400 mt-1 block">
+							La contraseña es requerida (mínimo 6 caracteres).
+						</span>
+					</div>
+
+					<!-- Confirmación de Contraseña -->
+					<div>
+						<label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Confirmación de Contraseña</label>
+						<div class="relative">
+							<input
+								:type="showConfirmPassword ? 'text' : 'password'"
+								v-model="form.confirmPassword"
+								placeholder="••••••••"
+								class="w-full pl-4 pr-11 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+							/>
+							<button
+								type="button"
+								@click="toggleShowConfirmPassword"
+								:disabled="isLoading"
+								class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition p-1 disabled:opacity-50"
+							>
+								<svg v-if="showConfirmPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+								</svg>
+								<svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a8.959 8.959 0 013.122-.863c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18" />
+								</svg>
+							</button>
+						</div>
+						<span v-if="touched.confirmPassword && (!form.confirmPassword || form.password !== form.confirmPassword)" class="text-xs text-red-400 mt-1 block">
+							{{ !form.confirmPassword ? 'La confirmación es requerida.' : 'Las contraseñas no coinciden.' }}
+						</span>
+					</div>
+
+					<!-- Botón Registrarse -->
+					<button
+						type="submit"
+						:disabled="isLoading"
+						class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg shadow-lg hover:shadow-blue-500/25 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+					>
+						<svg v-if="isLoading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+						<span v-if="!isLoading">Registrar Cuenta</span>
+						<span v-else>Guardando...</span>
+					</button>
+				</fieldset>
+
+				<!-- Regresar a Login -->
+				<div class="mt-6 text-center border-t border-slate-800 pt-4">
+					<p class="text-xs text-slate-400">
+						¿Ya tienes cuenta?
+						<RouterLink to="/login" class="text-blue-400 hover:text-blue-300 font-semibold ml-1 cursor-pointer transition">
+							Inicia sesión aquí
+						</RouterLink>
+					</p>
+				</div>
+			</form>
+		</div>
+	</div>
+</template>
