@@ -10,6 +10,7 @@ import {
 	columnFilteringFeature,
 	columnSizingFeature,
 	columnResizingFeature,
+	columnVisibilityFeature,
 	type ColumnDef,
 	type ColumnFiltersState,
 } from '@tanstack/vue-table'
@@ -30,6 +31,7 @@ const features = tableFeatures({
 	columnFilteringFeature,
 	columnSizingFeature,
 	columnResizingFeature,
+	columnVisibilityFeature,
 })
 
 const props = withDefaults(

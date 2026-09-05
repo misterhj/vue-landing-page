@@ -121,7 +121,7 @@ const routes: RouteRecordRaw[] = [
 			},
 			{
 				path: '',
-				redirect: 'dashboard',
+				redirect: '/admin/dashboard',
 				meta: { title: 'Dashboard', icon: 'dashboard', showInSidebar: true },
 			},
 		],
